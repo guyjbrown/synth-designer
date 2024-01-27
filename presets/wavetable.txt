@@ -1,0 +1,39 @@
+@synth wavetable
+longname : Wavetable test
+type : synth
+author : Guy J Brown
+version : 1.0
+doc : A test of wavetable synthesis
+@end
+
+# parameters
+
+@param cutoff
+type : float
+mutable: yes
+step : 0.01
+min : 100
+max : 8000
+default : 2000
+doc : cutoff frequency
+@end
+
+# modules
+
+WAVE-OSC : osc
+LPF : lowpass
+VCA : vca
+
+# patch
+
+osc.out -> lowpass.in
+lowpass.out -> vca.in
+vca.out -> audio.in
+
+# tweak
+
+osc.pitch = param.pitch
+vca.level = param.level
+lowpass.cutoff = param.cutoff
+
+# end

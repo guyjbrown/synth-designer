@@ -1,4 +1,5 @@
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+import WAVE_TABLES from './wavetables';
 
 // TODO add crossfade node
 // TODO the noise node is really inefficient - generates 2 seconds of noise for every note
@@ -325,14 +326,9 @@ moduleContext.Delay = class {
 // WAVETABLE
 // ----------------------------------------------------
 
-function getWaveTable(ctx) {
-  const real = new Float32Array(2);
-  const imag = new Float32Array(2);
-  real[0] = 0;
-  imag[0] = 0;
-  real[1] = 1;
-  imag[1] = 0;
-  return ctx.createPeriodicWave(real, imag);
+function getWaveTable(ctx,name,index) {
+  const table = WAVE_TABLES[name];
+  return ctx.createPeriodicWave(table[index].real, table[index].imag);
 }
 
 // ----------------------------------------------------
@@ -347,10 +343,9 @@ moduleContext.WaveTableOsc = class {
 
   constructor(ctx) {
     this._context = ctx;
-    this._osc = new OscillatorNode(ctx, {
-      type: "custom"
-    });
-    this._osc.setPeriodicWave(getWaveTable(ctx));
+    this._osc = ctx.createOscillator();
+    const wave = getWaveTable(ctx,"PPG",1);
+    this._osc.setPeriodicWave(wave);
     this._out = new GainNode(ctx, {
       gain: 1
     });
