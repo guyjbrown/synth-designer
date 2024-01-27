@@ -321,6 +321,88 @@ moduleContext.Delay = class {
 
 }
 
+// ----------------------------------------------------
+// WAVETABLE
+// ----------------------------------------------------
+
+function getWaveTable(ctx) {
+  const real = new Float32Array(2);
+  const imag = new Float32Array(2);
+  real[0] = 0;
+  imag[0] = 0;
+  real[1] = 1;
+  imag[1] = 0;
+  return ctx.createPeriodicWave(real, imag);
+}
+
+// ----------------------------------------------------
+// WAVETABLE OSCILLATOR
+// ----------------------------------------------------
+
+moduleContext.WaveTableOsc = class {
+
+  _osc
+  _out
+  _context
+
+  constructor(ctx) {
+    this._context = ctx;
+    this._osc = new OscillatorNode(ctx, {
+      type: "custom"
+    });
+    this._osc.setPeriodicWave(getWaveTable(ctx));
+    this._out = new GainNode(ctx, {
+      gain: 1
+    });
+    this._osc.connect(this._out);
+    monitor.retain("osc");
+  }
+
+  set detune(n) {
+    this._osc.detune.value = n;
+  }
+
+  // set the pitch
+  // when the pitch changes, we need to update the maximum delay time which is 1/f
+  // and the current delay which is pulsewidth/f
+  set pitch(f) {
+    this._osc.frequency.value = f;
+  }
+
+  // get the output node
+  get out() {
+    return this._out;
+  }
+
+  // the pitch CV is the constant source node offset connected to both oscillator frequencies
+  get pitchCV() {
+    return this._osc.frequency;
+  }
+
+  // start everything, including the source nodes
+  start(tim) {
+    this._osc.start(tim);
+  }
+
+  // stop everything
+  stop(tim) {
+    if (VERBOSE) console.log("stopping WaveTableOsc");
+    this._osc.stop(tim);
+    let stopTime = tim - this._context.currentTime;
+    if (stopTime < 0) stopTime = 0;
+    setTimeout(() => {
+      if (VERBOSE) console.log("disconnecting WaveTableOsc");
+      this._osc.disconnect();
+      this._out.disconnect();
+      this._osc = null;
+      this._out = null;
+      this._context = null;
+      monitor.release("osc");
+    }, (stopTime + 0.1) * 1000);
+  }
+
+}
+
 // ------------------------------------------------------------
 // Pulse oscillator function
 // this is quite a bit more complex than the standard oscillator
@@ -937,6 +1019,7 @@ const moduleClasses = {
   "TRI-OSC": "TriOsc",
   "SQR-OSC": "SquareOsc",
   "PULSE-OSC": "PulseOsc",
+  "WAVE-OSC" : "WaveTableOsc",
   "LFO": "LFO",
   "PAN": "Panner",
   "NOISE": "Noise",
@@ -957,6 +1040,7 @@ const validTweaks = {
   "SIN-OSC": ["detune", "pitch"],
   "SQR-OSC": ["detune", "pitch"],
   "TRI-OSC": ["detune", "pitch"],
+  "WAVE-OSC": ["detune", "pitch"],
   "PULSE-OSC": ["detune", "pitch", "pulsewidth"],
   "LFO": ["pitch", "phase"],
   "LPF": ["cutoff", "resonance"],
@@ -978,6 +1062,7 @@ const validPatchInputs = {
   "SIN-OSC": ["pitchCV"],
   "SQR-OSC": ["pitchCV"],
   "TRI-OSC": ["pitchCV"],
+  "WAVE-OSC": ["pitchCV"],
   "PULSE-OSC": ["pitchCV", "pulsewidthCV"],
   "LPF": ["in", "cutoffCV"],
   "HPF": ["in", "cutoffCV"],
@@ -995,6 +1080,7 @@ const validPatchOutputs = {
   "SIN-OSC": ["out"],
   "SQR-OSC": ["out"],
   "TRI-OSC": ["out"],
+  "WAVE-OSC": ["out"],
   "PULSE-OSC": ["out"],
   "LFO": ["out"],
   "NOISE": ["out"],
@@ -1806,6 +1892,7 @@ function getGrammarSource() {
   | "SQR-OSC"
   | "TRI-OSC"
   | "PULSE-OSC"
+  | "WAVE-OSC"
   | "LFO"
   | "NOISE"
   | "LPF"
