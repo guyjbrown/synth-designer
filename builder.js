@@ -323,7 +323,7 @@ moduleContext.Delay = class {
 }
 
 // ----------------------------------------------------
-// WAVETABLE
+// WAVETABLE auxilliary functions
 // ----------------------------------------------------
 
 function getWaveTable(ctx,name,index) {
@@ -339,6 +339,27 @@ function makeInterpolator(num_tables, k) {
 
 // ----------------------------------------------------
 // WAVETABLE OSCILLATOR
+// OK so this is quite tricky to do without using a worker node, which had all sorts of memory issues
+// This only uses the WebAudio API and does a reasonable job, but is limited to a relatvely small
+// number of waves in each table
+// The approach is to run 8 custom oscillators in parallel and blend between them. Each oscillator has a custom waveform.
+// This sounds inefficient but since each oscillator is a pretty lightweight process (table lookup) its not too bad
+// Each oscillator outputs to a gain that controls its level
+//
+// How to control the gains at audio rate?
+// This can be done by associating each oscillator with a waveShaperNode
+// The shaper functions for each oscillator are
+// 1 0 0 0 0 0 0 0
+// 0 1 0 0 0 0 0 0
+// 0 0 1 0 0 0 0 0
+// ...
+// and so on. A wave shaper is basically a lookup table with linear interpolation, so given a wave table index 
+// between -1 and 1 it will output a gain that is 1 at the oscillator index and then linearly falls off to zero
+// as the index increases or decreases
+// The final component is a constant source node that outputs a constant 1. That goes into each oscillator gain,
+// gets modulated by the mixing coefficient from each wave shaper, leading to a set of gains that smoothly
+// blend the different oscillators as you sweep through the index. This can be done at audio rate (so for example 
+// you could use a LFO or envelope to sweep through the tables)
 // ----------------------------------------------------
 
 moduleContext.WaveTableOsc = class {
@@ -363,18 +384,23 @@ moduleContext.WaveTableOsc = class {
     this._out = new GainNode(ctx, {
       gain: 1
     });
+    // output a constant 1, which gets modulated by the interpolators
     this._unity = new ConstantSourceNode(ctx,{
       offset : 1
     });
+    // pitch control attached to all oscillators
     this._pitchcontrol = new ConstantSourceNode(ctx, {
       offset : 0
     });
+    // detune control attached to all oscillators
     this._detunecontrol = new ConstantSourceNode(ctx, {
       offset : 0
     });
+    // a single control that is attached to all the interpolators
     this._indexcontrol = new ConstantSourceNode(ctx, {
       offset : 0
     });
+    // we have a number of oscillators in parallel
     for (let i=0; i<this._num_tables; i++) {
       // oscillator
       this._osc[i] = ctx.createOscillator();
@@ -388,13 +414,19 @@ moduleContext.WaveTableOsc = class {
       this._interpolator[i] = ctx.createWaveShaper();
       this._interpolator[i].curve = makeInterpolator(this._num_tables,i);
       this._interpolator[i].oversample = "none";
-      // connect
+      // connect it all up
+      // pitch and detune
       this._pitchcontrol.connect(this._osc[i].frequency);
       this._detunecontrol.connect(this._osc[i].detune);
+      // oscillators into gains
       this._osc[i].connect(this._gain[i]);
+      // gains mixed at the output
       this._gain[i].connect(this._out);
+      // index control sets the waveshaper input for each interpolator
       this._indexcontrol.connect(this._interpolator[i]);
+      // interpolators output a value for the gain control
       this._interpolator[i].connect(this._gain[i].gain);
+      // each gain gets a unity input so it outputs between 0-1 at audio rate
       this._unity.connect(this._gain[i]);
     }
     monitor.retain("osc");
@@ -1541,6 +1573,7 @@ function onMIDIMessage(message) {
       let value = parseFloat(el.min) + (parseFloat(el.max) - parseFloat(el.min)) * controllerValue;
       //console.log(value);
       setFloatControl(param, value);
+      makeImmediateTweak(param,value);
     }
 
   }
