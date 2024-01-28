@@ -337,31 +337,64 @@ function getWaveTable(ctx,name,index) {
 
 moduleContext.WaveTableOsc = class {
 
+  _num_tables = 8
   _osc
+  _gain
   _out
   _context
+  _index = 0
+  _pitchcontrol
+  _detunecontrol
 
   constructor(ctx) {
     this._context = ctx;
-    this._osc = ctx.createOscillator();
-    const wave = getWaveTable(ctx,"PPG",1);
-    this._osc.setPeriodicWave(wave);
+    this._osc = [];
+    this._gain = [];
     this._out = new GainNode(ctx, {
       gain: 1
     });
-    this._osc.connect(this._out);
+    this._pitchcontrol = new ConstantSourceNode(ctx, {
+      offset : 0
+    });
+    this._detunecontrol = new ConstantSourceNode(ctx, {
+      offset : 0
+    });
+    for (let i=0; i<this._num_tables; i++) {
+      this._osc[i] = ctx.createOscillator();
+      this._osc[i].setPeriodicWave(getWaveTable(ctx,"PPG",i));
+      this._gain[i] = new GainNode(ctx, {
+        gain: 0
+      });  
+      this._pitchcontrol.connect(this._osc[i].frequency);
+      this._detunecontrol.connect(this._osc[i].detune);
+      this._osc[i].connect(this._gain[i]);
+      this._gain[i].connect(this._out);
+    }
+    this._gain[0].gain.value=1;
     monitor.retain("osc");
   }
 
   set detune(n) {
-    this._osc.detune.value = n;
+      this._detunecontrol.offset.value = n;
   }
 
   // set the pitch
-  // when the pitch changes, we need to update the maximum delay time which is 1/f
-  // and the current delay which is pulsewidth/f
   set pitch(f) {
-    this._osc.frequency.value = f;
+      this._pitchcontrol.offset.value = f;
+  }
+
+  // should clamp k between 0 and 1
+  set index(k) {
+    if (k < 0) k = 0;
+    if (k > 0.99) k = 0.99;
+    const idx = k * (this._num_tables - 1);
+    const pos = Math.floor(k);
+    let the_gains = new Array(this._num_tables).fill(0);
+    the_gains[pos] = 1 - idx + pos;
+    the_gains[pos + 1] = idx - pos;
+    for (let i = 0; i < this._num_tables; i++) {
+      this._gain[i].gain.value = the_gains[i];
+    }
   }
 
   // get the output node
@@ -371,26 +404,38 @@ moduleContext.WaveTableOsc = class {
 
   // the pitch CV is the constant source node offset connected to both oscillator frequencies
   get pitchCV() {
-    return this._osc.frequency;
+    return this._osc.pitchcontrol;
   }
 
   // start everything, including the source nodes
   start(tim) {
-    this._osc.start(tim);
+    for (let i = 0; i < this._num_tables; i++) {
+      this._osc[i].start(tim);
+    }
   }
 
   // stop everything
   stop(tim) {
     if (VERBOSE) console.log("stopping WaveTableOsc");
-    this._osc.stop(tim);
+    for (let i = 0; i < this._num_tables; i++) {
+      this._osc[i].stop(tim);
+    }
     let stopTime = tim - this._context.currentTime;
     if (stopTime < 0) stopTime = 0;
     setTimeout(() => {
       if (VERBOSE) console.log("disconnecting WaveTableOsc");
-      this._osc.disconnect();
+      for (let i = 0; i < this._num_tables; i++) {
+        this._gain[i].disconnect();
+        this._gain[i] = null;
+        this._osc[i].disconnect();
+        this._osc[i] = null;
+      }
       this._out.disconnect();
-      this._osc = null;
       this._out = null;
+      this._pitchcontrol.disconnect();
+      this._pitchcontrol=null;
+      this._detunecontrol.disconnect();
+      this._detunecontrol=null;
       this._context = null;
       monitor.release("osc");
     }, (stopTime + 0.1) * 1000);
@@ -1035,7 +1080,7 @@ const validTweaks = {
   "SIN-OSC": ["detune", "pitch"],
   "SQR-OSC": ["detune", "pitch"],
   "TRI-OSC": ["detune", "pitch"],
-  "WAVE-OSC": ["detune", "pitch"],
+  "WAVE-OSC": ["detune", "pitch", "index"],
   "PULSE-OSC": ["detune", "pitch", "pulsewidth"],
   "LFO": ["pitch", "phase"],
   "LPF": ["cutoff", "resonance"],
@@ -1932,7 +1977,7 @@ function getGrammarSource() {
   tweakable
   = varname "." parameter
 
-  parameter = "pitch" | "detune" | "level" | "lag" | "phase" | "angle" | "cutoff" | "resonance" | "attack" | "decay" | "sustain" | "release" | "fuzz" | "pulsewidth" | "threshold" | "symmetry" | "gain" | "stages"
+  parameter = "pitch" | "detune" | "index" | "level" | "lag" | "phase" | "angle" | "cutoff" | "resonance" | "attack" | "decay" | "sustain" | "release" | "fuzz" | "pulsewidth" | "threshold" | "symmetry" | "gain" | "stages"
 
   varname (a module name)
   = lower alnum*
