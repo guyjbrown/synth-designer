@@ -22,10 +22,40 @@ doc : cutoff frequency
 type : float
 mutable: yes
 step : 0.01
-min : 0
+min : -1
 max : 1
 default : 0
 doc : wavetable index
+@end
+
+@param volume
+type : float
+mutable: yes
+step : 0.01
+min : 0
+max : 1
+default : 0.8
+doc : master volume
+@end
+
+@param lfo_rate
+type : float
+mutable: yes
+step : 0.01
+min : 0
+max : 5
+default : 0.5
+doc : rate of the LFO that sweeps the wavetable
+@end
+
+@param lfo_depth
+type : float
+mutable: yes
+step : 0.01
+min : 0
+max : 1
+default : 0.5
+doc : depth of the LFO that sweeps the wavetable
 @end
 
 
@@ -34,18 +64,35 @@ doc : wavetable index
 WAVE-OSC : osc
 LPF : lowpass
 VCA : vca
+ADSR : env
+TRI-OSC : lfo
+VCA : lfogain
 
 # patch
 
 osc.out -> lowpass.in
 lowpass.out -> vca.in
 vca.out -> audio.in
+lfo.out -> lfogain.in
+lfogain.out -> osc.indexCV
 
 # tweak
 
+lfo.pitch = param.lfo_rate
 osc.pitch = param.pitch
 vca.level = param.level
 lowpass.cutoff = param.cutoff
 osc.index = param.index
+lfogain.level = param.lfo_depth
+
+# env
+
+env.attack=0.01
+env.decay=0.1
+env.level = param.level*param.volume
+env.sustain = param.level*param.volume
+env.release = 0.1
+env.out -> vca.levelCV
+
 
 # end

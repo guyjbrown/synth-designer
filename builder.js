@@ -23,7 +23,7 @@ const MIN_LEVEL = 0;
 // flags
 
 const SHOW_DOC_STRINGS = false;
-const VERBOSE = false;
+const VERBOSE = true;
 
 // midi stuff
 
@@ -331,6 +331,12 @@ function getWaveTable(ctx,name,index) {
   return ctx.createPeriodicWave(table[index].real, table[index].imag);
 }
 
+function makeInterpolator(num_tables, k) {
+  const curve = new Float32Array(num_tables).fill(0);
+  curve[k] = 1;
+  return curve;
+}
+
 // ----------------------------------------------------
 // WAVETABLE OSCILLATOR
 // ----------------------------------------------------
@@ -345,13 +351,20 @@ moduleContext.WaveTableOsc = class {
   _index = 0
   _pitchcontrol
   _detunecontrol
+  _indexcontrol
+  _interpolator
+  _unity
 
   constructor(ctx) {
     this._context = ctx;
     this._osc = [];
     this._gain = [];
+    this._interpolator=[];
     this._out = new GainNode(ctx, {
       gain: 1
+    });
+    this._unity = new ConstantSourceNode(ctx,{
+      offset : 1
     });
     this._pitchcontrol = new ConstantSourceNode(ctx, {
       offset : 0
@@ -359,18 +372,31 @@ moduleContext.WaveTableOsc = class {
     this._detunecontrol = new ConstantSourceNode(ctx, {
       offset : 0
     });
+    this._indexcontrol = new ConstantSourceNode(ctx, {
+      offset : 0
+    });
     for (let i=0; i<this._num_tables; i++) {
+      // oscillator
       this._osc[i] = ctx.createOscillator();
+      this._osc[i].frequency.value = 0; // the constant source node controls frequency
       this._osc[i].setPeriodicWave(getWaveTable(ctx,"PPG",i));
+      // gain
       this._gain[i] = new GainNode(ctx, {
-        gain: 0
+        gain: 0 // all gains are set by an interpolator
       });  
+      // interpolators
+      this._interpolator[i] = ctx.createWaveShaper();
+      this._interpolator[i].curve = makeInterpolator(this._num_tables,i);
+      this._interpolator[i].oversample = "none";
+      // connect
       this._pitchcontrol.connect(this._osc[i].frequency);
       this._detunecontrol.connect(this._osc[i].detune);
       this._osc[i].connect(this._gain[i]);
       this._gain[i].connect(this._out);
+      this._indexcontrol.connect(this._interpolator[i]);
+      this._interpolator[i].connect(this._gain[i].gain);
+      this._unity.connect(this._gain[i]);
     }
-    this._gain[0].gain.value=1;
     monitor.retain("osc");
   }
 
@@ -383,18 +409,16 @@ moduleContext.WaveTableOsc = class {
       this._pitchcontrol.offset.value = f;
   }
 
-  // should clamp k between 0 and 1
+  // k should be between -1 and 1
+  // we don't check it here since it would be repeating work, since the
+  // waveShaperNode will clip input values in any case and we can never
+  // get a gain out of the interpolator outside the range [0,1]
   set index(k) {
-    if (k < 0) k = 0;
-    if (k > 0.99) k = 0.99;
-    const idx = k * (this._num_tables - 1);
-    const pos = Math.floor(k);
-    let the_gains = new Array(this._num_tables).fill(0);
-    the_gains[pos] = 1 - idx + pos;
-    the_gains[pos + 1] = idx - pos;
-    for (let i = 0; i < this._num_tables; i++) {
-      this._gain[i].gain.value = the_gains[i];
-    }
+    this._indexcontrol.offset.value = k;
+  }
+
+  get indexCV() {
+    return this._indexcontrol.offset;
   }
 
   // get the output node
@@ -412,6 +436,10 @@ moduleContext.WaveTableOsc = class {
     for (let i = 0; i < this._num_tables; i++) {
       this._osc[i].start(tim);
     }
+    this._pitchcontrol.start(tim);
+    this._detunecontrol.start(tim);
+    this._unity.start(tim);
+    this._indexcontrol.start(tim);
   }
 
   // stop everything
@@ -436,6 +464,10 @@ moduleContext.WaveTableOsc = class {
       this._pitchcontrol=null;
       this._detunecontrol.disconnect();
       this._detunecontrol=null;
+      this._indexcontrol.disconnect();
+      this._indexcontrol=null;
+      this._unity.disconnect();
+      this._unity=null;
       this._context = null;
       monitor.release("osc");
     }, (stopTime + 0.1) * 1000);
@@ -1102,7 +1134,7 @@ const validPatchInputs = {
   "SIN-OSC": ["pitchCV"],
   "SQR-OSC": ["pitchCV"],
   "TRI-OSC": ["pitchCV"],
-  "WAVE-OSC": ["pitchCV"],
+  "WAVE-OSC": ["pitchCV","indexCV"],
   "PULSE-OSC": ["pitchCV", "pulsewidthCV"],
   "LPF": ["in", "cutoffCV"],
   "HPF": ["in", "cutoffCV"],
@@ -1912,7 +1944,7 @@ function getGrammarSource() {
 
   patchinput = varname "." inputparam 
 
-  inputparam = "in" | "levelCV" | "pitchCV" | "cutoffCV" | "pulsewidthCV" | "angleCV" | "lagCV" | "thresholdCV" | "symmetryCV" | "gainCV"
+  inputparam = "levelCV" | "pitchCV" | "indexCV" | "in" | "cutoffCV" | "pulsewidthCV" | "angleCV" | "lagCV" | "thresholdCV" | "symmetryCV" | "gainCV"
 
   outputparam = "out"
 
@@ -2005,6 +2037,7 @@ function parseGeneratorSpec() {
   let result = synthGrammar.match(gui("synth-spec").value + "\n");
   if (result.succeeded()) {
     try {
+      if (VERBOSE) console.log("parsed OK");
       gui("parse-errors").value = "OK";
       const adapter = semantics(result);
       const json = adapter.interpret();
@@ -2022,6 +2055,7 @@ function parseGeneratorSpec() {
     }
   } else {
     gui("parse-errors").value = result.message;
+    if (VERBOSE) console.log(result);
   }
 }
 
