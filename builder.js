@@ -405,7 +405,7 @@ moduleContext.WaveTableOsc = class {
       // oscillator
       this._osc[i] = ctx.createOscillator();
       this._osc[i].frequency.value = 0; // the constant source node controls frequency
-      this._osc[i].setPeriodicWave(getWaveTable(ctx,"DRONE",i));
+      this._osc[i].setPeriodicWave(getWaveTable(ctx,"PLAITS_08",i));
       // gain
       this._gain[i] = new GainNode(ctx, {
         gain: 0 // all gains are set by an interpolator
