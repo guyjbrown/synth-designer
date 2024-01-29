@@ -1,5 +1,5 @@
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-import WAVE_TABLES from './wavetables';
+import WAVE_TABLES from './tables/wavetables';
 
 // TODO add crossfade node
 // TODO the noise node is really inefficient - generates 2 seconds of noise for every note
@@ -340,10 +340,10 @@ function makeInterpolator(num_tables, k) {
 // ----------------------------------------------------
 // WAVETABLE OSCILLATOR
 // OK so this is quite tricky to do without using a worker node, which had all sorts of memory issues
-// This only uses the WebAudio API and does a reasonable job, but is limited to a relatvely small
-// number of waves in each table
+// This code only uses the WebAudio API and does a reasonable job, but is limited to a relatvely small
+// number of waves in each table.
 // The approach is to run 8 custom oscillators in parallel and blend between them. Each oscillator has a custom waveform.
-// This sounds inefficient but since each oscillator is a pretty lightweight process (table lookup) its not too bad
+// This sounds inefficient but since each oscillator is a pretty lightweight process (table lookup) it's not too bad
 // Each oscillator outputs to a gain that controls its level
 //
 // How to control the gains at audio rate?
@@ -353,12 +353,12 @@ function makeInterpolator(num_tables, k) {
 // 0 1 0 0 0 0 0 0
 // 0 0 1 0 0 0 0 0
 // ...
-// and so on. A wave shaper is basically a lookup table with linear interpolation, so given a wave table index 
+// and so on. A wave shaper is basically a lookup table with linear interpolation, so given a wave table index
 // between -1 and 1 it will output a gain that is 1 at the oscillator index and then linearly falls off to zero
-// as the index increases or decreases
+// as the index increases or decreases.
 // The final component is a constant source node that outputs a constant 1. That goes into each oscillator gain,
 // gets modulated by the mixing coefficient from each wave shaper, leading to a set of gains that smoothly
-// blend the different oscillators as you sweep through the index. This can be done at audio rate (so for example 
+// blend the different oscillators as you sweep through the index. This can be done at audio rate (so for example
 // you could use a LFO or envelope to sweep through the tables)
 // ----------------------------------------------------
 
@@ -405,11 +405,11 @@ moduleContext.WaveTableOsc = class {
       // oscillator
       this._osc[i] = ctx.createOscillator();
       this._osc[i].frequency.value = 0; // the constant source node controls frequency
-      this._osc[i].setPeriodicWave(getWaveTable(ctx,"PPG",i));
+      this._osc[i].setPeriodicWave(getWaveTable(ctx,"DRONE",i));
       // gain
       this._gain[i] = new GainNode(ctx, {
         gain: 0 // all gains are set by an interpolator
-      });  
+      });
       // interpolators
       this._interpolator[i] = ctx.createWaveShaper();
       this._interpolator[i].curve = makeInterpolator(this._num_tables,i);
@@ -616,7 +616,7 @@ moduleContext.PulseOsc = class extends Oscillator {
 
   // the pulsewidth CV for PWM which takes an input through a gain node and scales it to
   // the maximum of the period
-  // this means that we can set pulsewidth to 0.5 and then CV should be in the range [0,0.5]  
+  // this means that we can set pulsewidth to 0.5 and then CV should be in the range [0,0.5]
   get pulsewidthCV() {
     return this.pwm;
   }
@@ -714,7 +714,7 @@ moduleContext.SquareOsc = class extends Oscillator {
 
 // ------------------------------------------------------------
 // Noise generator class
-// for reasons of efficiency we loop a 2-second buffer of noise rather than generating 
+// for reasons of efficiency we loop a 2-second buffer of noise rather than generating
 // random numbers for every sample
 // https://noisehack.com/generate-noise-web-audio-api/
 // TODO actually this is still very inefficient - we should share a noise generator across
@@ -1251,7 +1251,7 @@ class Monitor {
 function init() {
   mermaid.initialize({
     startOnLoad: true,
-    theme: 'base', 
+    theme: 'base',
     themeVariables: {
       "primaryColor": "#4f4f4f",
       "primaryTextColor": "#ccc",
@@ -1261,7 +1261,7 @@ function init() {
       "tertiaryColor": "#fff"
     }
   });
-  
+
   disableGUI(true);
   addListenersToGUI();
   setupMidi();
@@ -1367,25 +1367,25 @@ function addListenersToGUI() {
   // set the current file name to none
   gui("file-label").textContent = "Current file: none";
 
-  // load button 
+  // load button
   gui("load-button").onclick = async () => { await loadFile(); };
 
-  // save button 
+  // save button
   gui("save-button").onclick = async () => { await saveFile(); };
 
-  // save as button 
+  // save as button
   gui("save-as-button").onclick = async () => { await saveAsFile(); };
 
-  // export button 
+  // export button
   gui("export-button").onclick = async () => { await exportAsJSON(); };
 
-  // copy parameters to clipboard button 
+  // copy parameters to clipboard button
   gui("clip-button").onclick = () => { copyParamsToClipboard(); };
 
-  // copy docs to clipboard button 
+  // copy docs to clipboard button
   gui("docs-button").onclick = () => { copyDocsToClipboard(); };
 
-  // play button 
+  // play button
   gui("play-button").onmousedown = () => {
     const midiNoteNumber = getIntParam("slider-pitch");
     const velocity = getFloatParam("slider-level");
@@ -1917,12 +1917,12 @@ function getGrammarSource() {
 
   Mutable (a yes or no value)
   = "mutable" ":" yesno
-  
+
   yesno = "yes" | "no"
 
   Paramtype (a parameter type)
   = "type" ":" validtype
-  
+
   Paramstep (a parameter step value)
   = "step" ":" number
 
@@ -1944,7 +1944,7 @@ function getGrammarSource() {
   Maxval (a maximum value)
   = "max" ":" number
 
-  Defaultval (a default value) 
+  Defaultval (a default value)
   = "default" ":" number
 
   Author (an author)
@@ -1952,7 +1952,7 @@ function getGrammarSource() {
 
   Version (a version string)
   = "version" ":" versionstring
-  
+
   Docstring (a documentation string)
   = "doc" ":" string
 
@@ -1965,17 +1965,17 @@ function getGrammarSource() {
   quote (a quote)
   = "\""
 
-  Statement = comment 
+  Statement = comment
   | Parameter
   | Patch
-  | Tweak 
+  | Tweak
   | Declaration
 
   Patch = patchoutput "->" (patchinput | audio)
 
-  patchoutput = varname "." outputparam 
+  patchoutput = varname "." outputparam
 
-  patchinput = varname "." inputparam 
+  patchinput = varname "." inputparam
 
   inputparam = "levelCV" | "pitchCV" | "indexCV" | "in" | "cutoffCV" | "pulsewidthCV" | "angleCV" | "lagCV" | "thresholdCV" | "symmetryCV" | "gainCV"
 
@@ -1984,11 +1984,11 @@ function getGrammarSource() {
   audio = "audio.in"
 
   comment (a comment)
-  = "#" commentchar* 
+  = "#" commentchar*
 
   commentchar = alnum | "." | "+" | "-" | "/" | "*" | "." | ":" | blank
 
-  Tweak = tweakable "=" Exp 
+  Tweak = tweakable "=" Exp
 
   Declaration = module ":" varname
 
@@ -2010,23 +2010,23 @@ function getGrammarSource() {
   | "DELAY"
   | "FOLDER"
 
-  Exp 
+  Exp
     = AddExp
 
-  AddExp 
+  AddExp
     = AddExp "+" MulExp  -- add
   | AddExp "-" MulExp  -- subtract
-  | MulExp 
+  | MulExp
 
-  MulExp 
+  MulExp
     = MulExp "*" ExpExp -- times
     | MulExp "/" ExpExp -- divide
     | ExpExp
 
-  ExpExp 
+  ExpExp
     = "(" AddExp ")" -- paren
     | "-" ExpExp -- neg
-    | Function 
+    | Function
     | number
     | control
 
@@ -2046,7 +2046,7 @@ function getGrammarSource() {
 
   varname (a module name)
   = lower alnum*
-    
+
   number (a number)
   = floatingpoint | integer
 
@@ -2737,7 +2737,7 @@ class BleepPlayer {
           longestRelease = m.release;
       }
     });
-    // stop after the longest release time 
+    // stop after the longest release time
     Object.values(this.node).forEach((m) => {
       m.stop?.(when + longestRelease);
     });
@@ -3128,7 +3128,7 @@ class ScopeView {
   }
 
   /**
-   * 
+   *
    * @param {Uint8Array} data - the array to display
    */
   draw(data) {
@@ -3157,7 +3157,7 @@ class ScopeView {
   }
 
   /**
-   * 
+   *
    * @param {Uint8Array} data  - the array to process
    * @returns an integer index
    */
