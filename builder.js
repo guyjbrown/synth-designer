@@ -1,5 +1,5 @@
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-import WAVE_TABLES from './tables/wavetables';
+import {loadWaveTables} from './tables/wavetables';
 
 // TODO add crossfade node
 // TODO the noise node is really inefficient - generates 2 seconds of noise for every note
@@ -12,11 +12,15 @@ window.addEventListener('DOMContentLoaded', init);
 const MIDI_CONTROLLERS = [74, 71, 76, 77, 93, 18, 19, 16];
 let controlMap;
 
+// wavetables
+
+let WAVE_TABLES;
+
 // various constants
 
 const MIDDLE_C = 261.63; // Hz
-const MAX_MIDI_FREQ = 4186; // C8
-const MIN_MIDI_FREQ = 27.5;  // A0
+const MAX_MIDI_NOTE = 127; // G9
+const MIN_MIDI_NOTE = 21;  // A0
 const MAX_LEVEL = 1;
 const MIN_LEVEL = 0;
 
@@ -328,6 +332,7 @@ moduleContext.Delay = class {
 
 function getWaveTable(ctx,name,index) {
   const table = WAVE_TABLES[name];
+  console.log(table);
   return ctx.createPeriodicWave(table[index].real, table[index].imag);
 }
 
@@ -405,7 +410,7 @@ moduleContext.WaveTableOsc = class {
       // oscillator
       this._osc[i] = ctx.createOscillator();
       this._osc[i].frequency.value = 0; // the constant source node controls frequency
-      this._osc[i].setPeriodicWave(getWaveTable(ctx,"PLAITS_08",i));
+      this._osc[i].setPeriodicWave(getWaveTable(ctx,"COMB_SAW",i));
       // gain
       this._gain[i] = new GainNode(ctx, {
         gain: 0 // all gains are set by an interpolator
@@ -1248,7 +1253,7 @@ class Monitor {
 // initialise the button callbacks etc
 // ------------------------------------------------------------
 
-function init() {
+async function init() {
   mermaid.initialize({
     startOnLoad: true,
     theme: 'base',
@@ -1266,6 +1271,8 @@ function init() {
   addListenersToGUI();
   setupMidi();
   makeGrammar();
+  WAVE_TABLES = await loadWaveTables();
+  console.log(WAVE_TABLES);
   setDefaultValues();
   monitor = new Monitor();
 }
@@ -2321,10 +2328,10 @@ class BleepGenerator {
     // find the maxima and minima of all parameters and store them
     // but we need to store information about max/min pitch and level
     this.#maxima = {};
-    this.#maxima.pitch = MAX_MIDI_FREQ;
+    this.#maxima.pitch = MAX_MIDI_NOTE;
     this.#maxima.level = MAX_LEVEL;
     this.#minima = {};
-    this.#minima.pitch = MIN_MIDI_FREQ;
+    this.#minima.pitch = MIN_MIDI_NOTE;
     this.#minima.level = MIN_LEVEL;
     this.#defaults = {};
     this.#mutable = {};
@@ -2787,9 +2794,16 @@ class BleepPlayer {
         let op2 = stack.pop();
         let op3 = stack.pop();
         let control = op3.replace("param.", "");
+        let value = this.params[control];
+        // mapping pitch in this way doesnt work well, so 
+        // convert to midi note number
+        if (control=="pitch") {
+          value = freqHztoMidiNote(value);
+        }
         let minval = this.generator.minima[control];
         let maxval = this.generator.maxima[control];
-        let s = scaleValue(minval, maxval, op2, op1, this.params[control]);
+        let s = scaleValue(minval, maxval, op2, op1, value);
+        console.log(s);
         stack.push(s);
       }
     }
@@ -3048,6 +3062,14 @@ function midiToNoteName(m) {
 
 function midiNoteToFreqHz(m) {
   return 440 * Math.pow(2, (m - 69) / 12.0);
+}
+
+// ------------------------------------------------------------
+// Convert a frequency in Hz to its MIDI note number
+// ------------------------------------------------------------
+
+function freqHztoMidiNote(f) {
+  return 69 + 12 * Math.log2(f / 440);
 }
 
 // ------------------------------------------------------------

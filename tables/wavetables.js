@@ -1,21 +1,45 @@
-import plaits_01 from "./plaits_01"
-import plaits_02 from "./plaits_02"
-import plaits_03 from "./plaits_03"
-import plaits_04 from "./plaits_04"
-import plaits_05 from "./plaits_05"
-import plaits_06 from "./plaits_06"
-import plaits_07 from "./plaits_07"
-import plaits_08 from "./plaits_08"
+const TABLE_NAMES = [
+    "bleep_guttural",
+    "bleep_ringhold",
+    "bleep_karplus",
+    "bleep_combsaw",
+    "braids_bell",
+    "braids_drone_01",
+    "braids_drone_02",
+    "braids_fantasy",
+    "braids_female",
+    "braids_male",
+    "braids_metal",
+    "braids_slap",
+    "braids_string",
+    "braids_tanpura"
+];
 
-let WAVE_TABLES = {
-    "PLAITS_01": plaits_01,
-    "PLAITS_02": plaits_02,
-    "PLAITS_03": plaits_03,
-    "PLAITS_04": plaits_04,
-    "PLAITS_05": plaits_05,
-    "PLAITS_06": plaits_06,
-    "PLAITS_07": plaits_07,
-    "PLAITS_08": plaits_08
-};
+export async function loadWaveTables() {
+    try {
+        // wait for all promises
+        let promises = TABLE_NAMES.map(async (name) => {
+            let json = await fetchJSONData(name);
+            return json;
+        });
+        let tables = await Promise.all(promises);
+        // combine all wave tables into single map
+        let combinedTable = tables.reduce((acc, table) => ({ ...acc, ...table }), {});
+        return combinedTable;
+    } catch (error) {
+        console.error("Error loading wave table: ", error);
+    }
+}
 
-export default WAVE_TABLES;
+async function fetchJSONData(name) {
+    try {
+        const response = await fetch(`./tables/${name}.json`);
+        if (!response.ok) {
+            throw new Error(`HTTP error when fetching wave table: ${response.status}`);
+        }
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error("Unable to fetch wave table:", error);
+    }
+}

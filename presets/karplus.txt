@@ -1,0 +1,59 @@
+@synth wavetable
+longname : Wavetable test
+type : synth
+author : Guy J Brown
+version : 1.0
+doc : A test of wavetable synthesis
+@end
+
+# parameters
+
+@param index
+type : float
+mutable: yes
+step : 0.01
+min : -1
+max : 1
+default : 0
+doc : wavetable index
+@end
+
+@param volume
+type : float
+mutable: yes
+step : 0.01
+min : 0
+max : 1
+default : 0.8
+doc : master volume
+@end
+
+# modules
+
+WAVE-OSC : osc
+VCA : vca
+DECAY : decay
+DECAY : env
+LPF : lowpass
+
+decay.level=3000
+decay.decay=2
+
+env.level=1
+env.decay=2
+
+env.out -> vca.levelCV
+decay.out -> lowpass.cutoffCV
+
+# patch
+
+osc.out -> vca.in
+vca.out -> audio.in
+
+# tweak
+
+osc.pitch = param.pitch
+vca.level = param.level
+osc.index = -1
+
+# end
