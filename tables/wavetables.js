@@ -11,6 +11,7 @@ const TABLE_NAMES = [
     "braids_female",
     "braids_male",
     "braids_metal",
+    "braids_piano",
     "braids_shamus",
     "braids_slap",
     "braids_string",
