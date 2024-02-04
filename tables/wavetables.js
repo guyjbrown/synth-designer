@@ -1,18 +1,21 @@
 const TABLE_NAMES = [
-    "bleep_guttural",
-    "bleep_ringhold",
-    "bleep_karplus",
     "bleep_combsaw",
+    "bleep_guttural",
+    "bleep_karplus",
+    "bleep_ringhold",
     "braids_bell",
+    "braids_bowed",
     "braids_drone_01",
     "braids_drone_02",
     "braids_fantasy",
     "braids_female",
     "braids_male",
     "braids_metal",
+    "braids_shamus",
     "braids_slap",
     "braids_string",
-    "braids_tanpura"
+    "braids_tanpura",
+    "braids_vibes"
 ];
 
 export async function loadWaveTables() {
