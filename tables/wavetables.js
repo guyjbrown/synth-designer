@@ -1,4 +1,5 @@
 const TABLE_NAMES = [
+    "bleep_bansuri",
     "bleep_combsaw",
     "bleep_guttural",
     "bleep_karplus",
