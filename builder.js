@@ -512,6 +512,21 @@ moduleContext.WaveTableOsc = class {
 
 }
 
+/* Random noise cycle oscillator - for karplus strong pluck and tanpura synthesis */
+
+moduleContext.RandomOsc = class extends Oscillator {
+  constructor(ctx) {
+    super(ctx);
+    // real parts for random sequence
+    const real = new Float32Array([9.1182, 1.1314, -3.7047, -1.5283, -1.0751, 0.0700, 3.2826, 3.6116, -5.5772, -2.6959, 2.6466, -1.8377, 2.1301, 0.9041, -1.5017, -4.2249, -1.0005, -0.4352, 4.5624, -6.7144, 2.4735, -2.0083, -2.6985, 3.7056, -2.2746, 5.1290, -7.3179, 2.4413, 4.1436, 0.3962, -4.8453, 2.1462, 2.5211, 2.1462, -4.8453, 0.3962, 4.1436, 2.4413, -7.3179, 5.1290, -2.2746, 3.7056, -2.6985, -2.0083, 2.4735, -6.7144, 4.5624, -0.4352, -1.0005, -4.2249, -1.5017, 0.9041, 2.1301, -1.8377, 2.6466, -2.6959, -5.5772, 3.6116, 3.2826, 0.0700, -1.0751, -1.5283, -3.7047, 1.1314]);
+    // imaginary parts for random sequende
+    const imag = new Float32Array([0.0000, 1.6620, 4.1186, 5.8102, -1.8278, -0.6848, 0.7658, -2.5074, -5.5043, -3.6768, -4.1541, -3.6705, 2.7696, -5.5667, 1.8004, 3.6096, 5.5857, 5.1045, 1.1952, 1.6681, 2.3166, -3.3849, -3.2703, 0.2231, -0.6119, 1.1657, -0.3912, -2.2402, -1.4960, -2.8728, -9.5067, 0.2702, 0.0000, -0.2702, 9.5067, 2.8728, 1.4960, 2.2402, 0.3912, -1.1657, 0.6119, -0.2231, 3.2703, 3.3849, -2.3166, -1.6681, -1.1952, -5.1045, -5.5857, -3.6096, -1.8004, 5.5667, -2.7696, 3.6705, 4.1541, 3.6768, 5.5043, 2.5074, -0.7658, 0.6848, 1.8278, -5.8102, -4.1186, -1.6620]);
+    // oscillator with a wavetable containing a random sequence
+    const wave = ctx.createPeriodicWave(real, imag);
+    this.osc.setPeriodicWave(wave);
+  }
+}
+
 // ------------------------------------------------------------
 // Pulse oscillator function
 // this is quite a bit more complex than the standard oscillator
@@ -1128,6 +1143,7 @@ const moduleClasses = {
   "TRI-OSC": "TriOsc",
   "SQR-OSC": "SquareOsc",
   "PULSE-OSC": "PulseOsc",
+  "RAND-OSC" : "RandomOsc",
   "WAVE-OSC" : "WaveTableOsc",
   "LFO": "LFO",
   "PAN": "Panner",
@@ -1149,6 +1165,7 @@ const validTweaks = {
   "SIN-OSC": ["detune", "pitch"],
   "SQR-OSC": ["detune", "pitch"],
   "TRI-OSC": ["detune", "pitch"],
+  "RAND-OSC": ["detune", "pitch"],
   "WAVE-OSC": ["detune", "pitch", "index"],
   "PULSE-OSC": ["detune", "pitch", "pulsewidth"],
   "LFO": ["pitch", "phase"],
@@ -1171,6 +1188,7 @@ const validPatchInputs = {
   "SIN-OSC": ["pitchCV"],
   "SQR-OSC": ["pitchCV"],
   "TRI-OSC": ["pitchCV"],
+  "RAND-OSC": ["pitchCV"],
   "WAVE-OSC": ["pitchCV","indexCV"],
   "PULSE-OSC": ["pitchCV", "pulsewidthCV"],
   "LPF": ["in", "cutoffCV"],
@@ -1189,6 +1207,7 @@ const validPatchOutputs = {
   "SIN-OSC": ["out"],
   "SQR-OSC": ["out"],
   "TRI-OSC": ["out"],
+  "RAND-OSC": ["out"],
   "WAVE-OSC": ["out"],
   "PULSE-OSC": ["out"],
   "LFO": ["out"],
@@ -2003,6 +2022,7 @@ function getGrammarSource() {
   | "SIN-OSC"
   | "SQR-OSC"
   | "TRI-OSC"
+  | "RAND-OSC"
   | "PULSE-OSC"
   | "WAVE-OSC"
   | "LFO"
@@ -2497,7 +2517,7 @@ class BleepGenerator {
     } else {
       const type = this.getTypeForID(id);
       switch (type) {
-        case "SAW-OSC": case "SIN-OSC": case "SQR-OSC": case "TRI-OSC": case "PULSE-OSC": case "LFO":
+        case "SAW-OSC": case "SIN-OSC": case "SQR-OSC": case "TRI-OSC": case "RAND-OSC": case "WAVE-OSC": case "PULSE-OSC": case "LFO":
           leftBracket = "([";
           rightBracket = "])";
           break;

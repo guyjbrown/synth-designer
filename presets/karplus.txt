@@ -1,59 +1,55 @@
-@synth wavetable
-longname : Wavetable test
+@synth default
+longname : Default patch
 type : synth
 author : Guy J Brown
 version : 1.0
-doc : A test of wavetable synthesis
+doc : A very simple default patch
 @end
 
 # parameters
 
-@param index
+@param cutoff
 type : float
 mutable: yes
 step : 0.01
-min : -1
-max : 1
-default : 0
-doc : wavetable index
+min : 100
+max : 8000
+default : 2000
+doc : cutoff frequency
 @end
 
-@param volume
+@param decay
 type : float
 mutable: yes
 step : 0.01
-min : 0
-max : 1
-default : 0.8
-doc : master volume
+min : 0.1
+max : 12
+default : 4
+doc : decay
 @end
+
 
 # modules
 
-WAVE-OSC : osc
-VCA : vca
-DECAY : decay
-DECAY : env
+RAND-OSC : osc
 LPF : lowpass
-
-decay.level=3000
-decay.decay=2
-
-env.level=1
-env.decay=2
-
-env.out -> vca.levelCV
-decay.out -> lowpass.cutoffCV
+VCA : vca
+DECAY : env
 
 # patch
 
-osc.out -> vca.in
+osc.out -> lowpass.in
+lowpass.out -> vca.in
 vca.out -> audio.in
 
 # tweak
 
 osc.pitch = param.pitch
 vca.level = param.level
-osc.index = -1
+env.level = param.cutoff
+env.decay = param.decay
+env.attack = 0
+env.out -> lowpass.cutoffCV
+lowpass.resonance = 0
 
 # end
