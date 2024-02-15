@@ -1,5 +1,6 @@
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 import {loadWaveTables} from './tables/wavetables';
+import { loadCycles } from './cycles/cycles';
 
 // TODO add crossfade node
 // TODO the noise node is really inefficient - generates 2 seconds of noise for every note
@@ -15,6 +16,7 @@ let controlMap;
 // wavetables
 
 let WAVE_TABLES;
+let WAVE_CYCLES;
 
 // various constants
 
@@ -534,6 +536,26 @@ moduleContext.RandomOsc = class extends Oscillator {
   }
 }
 
+// ----------------------------------------------------
+// Custom oscillator auxilliary functions
+// ----------------------------------------------------
+
+function getWaveCycle(ctx,name) {
+  const cycle = WAVE_CYCLES[name];
+  return ctx.createPeriodicWave(cycle.real, cycle.imag);
+}
+
+moduleContext.CustomOsc = class extends Oscillator {
+  
+    constructor(ctx,cycleName) {
+      super(ctx);
+      console.log(cycleName);
+      // oscillator with a custom wavetable
+      const cycle = getWaveCycle(ctx,cycleName);
+      this.osc.setPeriodicWave(cycle);
+    }
+  
+}
 
 
 // ------------------------------------------------------------
@@ -1153,6 +1175,7 @@ const moduleClasses = {
   "SQR-OSC": "SquareOsc",
   "PULSE-OSC": "PulseOsc",
   "RAND-OSC" : "RandomOsc",
+  "CUSTOM-OSC" : "CustomOsc",
   "WAVE-OSC" : "WaveTableOsc",
   "LFO": "LFO",
   "PAN": "Panner",
@@ -1175,6 +1198,7 @@ const validTweaks = {
   "SQR-OSC": ["detune", "pitch"],
   "TRI-OSC": ["detune", "pitch"],
   "RAND-OSC": ["detune", "pitch"],
+  "CUSTOM-OSC": ["detune", "pitch"],
   "WAVE-OSC": ["detune", "pitch", "index"],
   "PULSE-OSC": ["detune", "pitch", "pulsewidth"],
   "LFO": ["pitch", "phase"],
@@ -1198,6 +1222,7 @@ const validPatchInputs = {
   "SQR-OSC": ["pitchCV"],
   "TRI-OSC": ["pitchCV"],
   "RAND-OSC": ["pitchCV"],
+  "CUSTOM-OSC": ["pitchCV"],
   "WAVE-OSC": ["pitchCV","indexCV"],
   "PULSE-OSC": ["pitchCV", "pulsewidthCV"],
   "LPF": ["in", "cutoffCV"],
@@ -1217,6 +1242,7 @@ const validPatchOutputs = {
   "SQR-OSC": ["out"],
   "TRI-OSC": ["out"],
   "RAND-OSC": ["out"],
+  "CUSTOM-OSC": ["out"],
   "WAVE-OSC": ["out"],
   "PULSE-OSC": ["out"],
   "LFO": ["out"],
@@ -1300,7 +1326,9 @@ async function init() {
   setupMidi();
   makeGrammar();
   WAVE_TABLES = await loadWaveTables();
+  WAVE_CYCLES = await loadCycles();
   console.log(WAVE_TABLES);
+  console.log(WAVE_CYCLES);
   setDefaultValues();
   monitor = new Monitor();
 }
@@ -1839,6 +1867,9 @@ function makeGrammar() {
     varname(a, b) {
       return a.sourceString + b.sourceString;
     },
+    tablename(a, b) {
+      return a.sourceString + b.sourceString;
+    },
     Declaration(a, b, c) {
       const type = a.interpret();
       const id = c.interpret();
@@ -1846,6 +1877,15 @@ function makeGrammar() {
         throwError(`module "${id}" has already been defined`, this.source);
       modules.set(id, type);
       return `{"module":{"type":"${type}","id":"${id}"}}`;
+    },
+    Custom(a, b, c, d, e) {
+      const type = a.sourceString;
+      const id = c.interpret();
+      const table = e.interpret();
+      if (modules.has(id))
+        throwError(`module "${id}" has already been defined`, this.source);
+      modules.set(id, type);
+      return `{"module":{"type":"${type}","id":"${id}","table":"${table}"}}`;
     },
     module(a) {
       return a.sourceString;
@@ -2005,6 +2045,7 @@ function getGrammarSource() {
   | Patch
   | Tweak
   | Declaration
+  | Custom
 
   Patch = patchoutput "->" (patchinput | audio)
 
@@ -2026,6 +2067,8 @@ function getGrammarSource() {
   Tweak = tweakable "=" Exp
 
   Declaration = module ":" varname
+
+  Custom = "CUSTOM-OSC" ":" varname "TABLE" tablename
 
   module = "SAW-OSC"
   | "SIN-OSC"
@@ -2081,6 +2124,9 @@ function getGrammarSource() {
   parameter = "pitch" | "detune" | "index" | "level" | "lag" | "phase" | "angle" | "cutoff" | "resonance" | "attack" | "decay" | "sustain" | "release" | "fuzz" | "pulsewidth" | "threshold" | "symmetry" | "gain" | "stages"
 
   varname (a module name)
+  = lower alnum*
+
+  tablename (a wavetable name)
   = lower alnum*
 
   number (a number)
@@ -2382,6 +2428,7 @@ class BleepGenerator {
   // check for errors
 
   checkForErrors() {
+    // TODO #4 check for a wave table or custom cycle that does not exist 
     // nothing is patched
     if (this.#patches.length == 0)
       throw new Error("BleepGenerator error: nothing is patched");
@@ -2698,7 +2745,13 @@ class BleepPlayer {
   createModules() {
     // make a webaudio object for each node
     for (let m of this.generator.modules) {
-      this.node[m.id] = getModuleInstance(this.context, m.type);
+      if (m.type == "CUSTOM-OSC") {
+        // custom oscillators are special because we must load the cycle data
+        this.node[m.id] = new moduleContext.CustomOsc(this.context, m.table);
+      } else {
+        // otherwise look up the module type and make an instance
+        this.node[m.id] = getModuleInstance(this.context, m.type);
+      }
     }
     // we always need an audio object for output
     this.node["audio"] = getModuleInstance(this.context, "VCA");

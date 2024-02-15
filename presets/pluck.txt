@@ -41,7 +41,7 @@ doc : master volume
 
 # modules
 
-RAND-OSC : osc
+CUSTOM-OSC : osc TABLE random
 LPF : lowpass
 VCA : vca
 DECAY : env
@@ -60,6 +60,6 @@ env.level = 500+(param.cutoff-500)*param.level
 env.decay = param.decay
 env.attack = 0
 env.out -> lowpass.cutoffCV
-lowpass.resonance = 0
+lowpass.resonance = -10
 
 # end

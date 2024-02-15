@@ -26,6 +26,16 @@ default: 0.1
 doc: filter resonance
 @end
 
+@param attack
+type: float
+mutable: yes
+step: 0.005
+min: 0
+max: 0.1
+default: 0.02
+doc: attack time in seconds
+@end
+
 @param noise
 type: float
 mutable: no
@@ -69,7 +79,7 @@ doc: high values give more chiff
 
 # modules
 
-TRI-OSC : vco
+CUSTOM-OSC : vco TABLE bansuri
 SIN-OSC : lfo
 VCA : tremdepth
 LPF : filter
@@ -109,7 +119,7 @@ lfo.pitch = param.rate
 
 # apply the envelope 
 
-env.attack = 0.02
+env.attack = param.attack
 env.level = param.level
 env.sustain = param.level*(1-param.chiff)
 env.release = 0.1

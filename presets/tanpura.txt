@@ -70,8 +70,8 @@ doc : master volume
 
 # modules
 
-RAND-OSC : osc1
-RAND-OSC : osc2
+CUSTOM-OSC : osc1 TABLE random
+CUSTOM-OSC : osc2 TABLE random
 VCA : mix
 LPF : lowpass
 VCA : vca
