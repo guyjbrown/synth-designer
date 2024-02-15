@@ -516,6 +516,8 @@ moduleContext.WaveTableOsc = class {
 
 /* Random noise cycle oscillator - for karplus strong pluck and tanpura synthesis */
 
+// TODO #5 : remove all references to RandomOsc
+
 moduleContext.RandomOsc = class extends Oscillator {
 
   // real parts for random sequence
@@ -549,7 +551,6 @@ moduleContext.CustomOsc = class extends Oscillator {
   
     constructor(ctx,cycleName) {
       super(ctx);
-      console.log(cycleName);
       // oscillator with a custom wavetable
       const cycle = getWaveCycle(ctx,cycleName);
       this.osc.setPeriodicWave(cycle);
