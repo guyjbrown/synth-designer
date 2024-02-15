@@ -1,9 +1,9 @@
-@synth default
-longname : Default patch
+@synth tanpura
+longname : Tanpura
 type : synth
 author : Guy J Brown
 version : 1.0
-doc : A very simple default patch
+doc : A tanpura sound based on string synthesis 
 @end
 
 # parameters
@@ -58,6 +58,16 @@ default : 0.55
 doc : decay
 @end
 
+@param volume
+type : float
+mutable: yes
+step : 0.01
+min : 0
+max : 1
+default : 0.8
+doc : master volume
+@end
+
 # modules
 
 RAND-OSC : osc1
@@ -93,8 +103,8 @@ lowpass.resonance = 0
 
 amp.attack=param.amp_attack
 amp.decay=0.3
-amp.level=param.level
-amp.sustain=1
+amp.level=param.level*param.volume
+amp.sustain=param.level*param.volume
 amp.release=0.1
 
 amp.out -> vca.levelCV

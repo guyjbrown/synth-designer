@@ -1,0 +1,128 @@
+@synth twoopfm
+longname : Two operator FM
+type : synth
+author : Guy J Brown
+version : 1.0
+doc : Two operator FM with carrier, modulator and feedback
+@end
+
+# parameters
+
+@param op1_transpose
+type : float
+mutable: yes
+step : 0.05
+min : 0.25
+max : 4
+default : 1
+doc : operator 1 transpose
+@end
+
+@param op1_fm
+type : float
+mutable: yes
+step : 0.01
+min : 0
+max : 1
+default : 0
+doc : fm
+@end
+
+@param op1_fback
+type : float
+mutable: yes
+step : 0.01
+min : 0
+max : 1
+default : 0
+doc : feedback
+@end
+
+@param op1_ratio
+type : float
+mutable: yes
+step : 0.5
+min : 0.5
+max : 32
+default : 1
+doc : frequency ratio
+@end
+
+@param op1_mod_decay
+type : float
+mutable: yes
+step : 0.01
+min : 0.1
+max : 10
+default : 2
+doc : modulator decay
+@end
+
+@param op1_car_decay
+type : float
+mutable: yes
+step : 0.01
+min : 0.1
+max : 10
+default : 2
+doc : carrier decay
+@end
+
+@param volume
+type : float
+mutable: yes
+step : 0.01
+min : 0
+max : 1
+default : 0.8
+doc : master volume control
+@end
+
+# modules
+
+SIN-OSC : carrier
+SIN-OSC : modulator
+VCA : vca
+VCA : mix
+VCA : feedback
+VCA : gain
+DECAY : carenv
+DECAY : modenv
+
+# carrier to audio 
+
+carrier.out -> vca.in
+vca.out -> audio.in
+
+# frequency modulation
+
+modulator.out -> gain.in
+gain.out -> mix.in
+mix.out -> carrier.pitchCV
+
+# feedback
+
+carrier.out -> feedback.in
+feedback.out -> mix.in
+
+# tweak
+
+carrier.pitch = param.pitch*param.op1_transpose
+modulator.pitch = param.pitch*param.op1_ratio
+feedback.level = param.op1_fback*1000
+
+# carrier envelope
+
+carenv.out -> vca.levelCV
+carenv.level = param.level*param.volume
+carenv.decay = param.op1_car_decay
+carenv.attack = 0.01
+
+# modulator envelope
+
+modenv.out -> gain.levelCV
+modenv.level = param.op1_fm*1000
+modenv.decay = param.op1_mod_decay
+modenv.attack = 0.01
+
+# end
