@@ -1,9 +1,9 @@
-@synth pluck
-longname : Plucked string
+@synth rothery
+longname : Plucked string with chorus
 type : synth
 author : Guy J Brown
 version : 1.1
-doc : A plucked string based on a variant of Karplus String synthesis. The brightness of the pluck depends on the level.
+doc : A plucked string with chorus effect
 @end
 
 # parameters
@@ -14,7 +14,7 @@ mutable: yes
 step : 0.01
 min : 100
 max : 8000
-default : 6000
+default : 8000
 doc : cutoff frequency in Hz
 @end
 
@@ -27,6 +27,17 @@ max : 12
 default : 4
 doc : filter decay time in sec
 @end
+
+@param detune
+type : float
+mutable: yes
+step : 0.01
+min : 0
+max : 15
+default : 5.5
+doc : detune in cents
+@end
+
 
 @param volume
 type : float
@@ -41,20 +52,27 @@ doc : master volume
 
 # modules
 
-CUSTOM-OSC : osc TABLE steelpick
+CUSTOM-OSC : osc1 TABLE steelpick
+CUSTOM-OSC : osc2 TABLE steelpick
 LPF : lowpass
 VCA : vca
+VCA : mix
 DECAY : env
 
 # patch
 
-osc.out -> lowpass.in
+osc1.out -> mix.in
+osc2.out -> mix.in
+mix.out -> lowpass.in
 lowpass.out -> vca.in
 vca.out -> audio.in
 
 # tweak
 
-osc.pitch = param.pitch
+osc1.pitch = param.pitch
+osc2.pitch = param.pitch
+osc1.detune = param.detune
+osc2.detune = -1*param.detune
 vca.level = param.volume*param.level
 env.level = 500+(param.cutoff-500)*param.level
 env.decay = param.decay
