@@ -1,0 +1,48 @@
+@synth default
+longname : Default patch
+type : synth
+author : Guy J Brown
+version : 1.0
+doc : A very simple default patch
+@end
+
+# parameters
+
+@param cutoff
+type : float
+mutable: yes
+step : 0.01
+min : 100
+max : 8000
+default : 700
+doc : cutoff frequency
+@end
+
+# modules
+
+SAW-OSC : osc
+CUSTOM-OSC : lfo TABLE samplehold1
+LPF : lowpass
+VCA : vca
+VCA : lfogain
+
+# patch
+
+osc.out -> lowpass.in
+lowpass.out -> vca.in
+vca.out -> audio.in
+
+lfo.out -> lfogain.in
+lfogain.out -> lowpass.cutoffCV
+lowpass.resonance = 15
+
+# tweak
+
+osc.pitch = param.pitch
+vca.level = param.level
+lowpass.cutoff = param.cutoff
+lfogain.level = param.cutoff/2
+lfo.pitch=0.2
+
+
+# end
